@@ -1,0 +1,278 @@
+$green: #00ff41;
+$green-dim: #00a82b;
+$green-faint: rgba(0, 255, 65, 0.15);
+$amber: rgba(255, 200, 0, 0.85);
+
+.contact-root {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	background-color: #020d02;
+	box-shadow: 0 0 40px rgba(0, 255, 65, 0.18);
+	padding: 14px;
+	font-family: monospace;
+	color: $green;
+	pointer-events: all;
+	position: relative;
+	overflow: hidden;
+}
+
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+.contact-header {
+	display: flex;
+	font-size: 11px;
+	letter-spacing: 2px;
+	color: $green-dim;
+	border-bottom: 1px solid $green-dim;
+	padding-bottom: 8px;
+	margin-bottom: 14px;
+}
+
+// ── Data rows ─────────────────────────────────────────────────────────────────
+
+.contact-block {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 14px;
+}
+
+.data-row {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.data-label {
+	display: flex;
+	font-size: 9px;
+	color: $green-dim;
+	letter-spacing: 1px;
+}
+
+.data-value {
+	display: flex;
+	font-size: 10px;
+	color: $green;
+	letter-spacing: 1px;
+	text-shadow: 0 0 6px rgba(0, 255, 65, 0.55);
+}
+
+.data-value.unknown {
+	color: $amber;
+	text-shadow: 0 0 6px rgba(255, 200, 0, 0.55);
+}
+
+.data-value.solution {
+	font-size: 14px;
+	letter-spacing: 4px;
+	text-shadow:
+		-1px 0 rgba(255, 0, 60, 0.25),
+		1px  0 rgba(0, 180, 255, 0.25),
+		0    0 12px rgba(0, 255, 65, 0.9),
+		0    0 24px rgba(0, 255, 65, 0.4);
+}
+
+// ── Fire solution block ───────────────────────────────────────────────────────
+
+.solution-block {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	border-top: 1px solid $green-dim;
+	border-bottom: 1px solid $green-dim;
+	padding: 10px 0;
+	margin-bottom: 14px;
+}
+
+.solution-header {
+	display: flex;
+	font-size: 9px;
+	letter-spacing: 2px;
+	color: $green-dim;
+	justify-content: center;
+}
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+
+.btn-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: auto;
+}
+
+.crt-btn {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 32px;
+	background-color: transparent;
+	border: 1px solid $green-dim;
+	color: $green;
+	font-family: monospace;
+	font-size: 10px;
+	letter-spacing: 1px;
+	cursor: pointer;
+	pointer-events: all;
+}
+
+.crt-btn:hover {
+	background-color: $green-faint;
+}
+
+.crt-btn.secondary {
+	color: $green-dim;
+	border-color: rgba(0, 168, 43, 0.25);
+}
+
+// ── Calculation bar ───────────────────────────────────────────────────────────
+
+.calc-bar-track {
+	display: flex;
+	width: 100%;
+	height: 6px;
+	background-color: rgba(0, 255, 65, 0.1);
+	border: 1px solid $green-dim;
+	margin-top: 6px;
+}
+
+.calc-bar-fill {
+	display: flex;
+	height: 100%;
+	background-color: $green;
+	transition: width 0.05s linear;
+}
+
+// ── Stale / invalid solution ──────────────────────────────────────────────────
+
+.solution-block.stale .solution-header,
+.solution-block.stale .data-value,
+.solution-block.warning .solution-header,
+.solution-block.warning .data-value {
+	color: $amber;
+}
+
+.solution-block.stale,
+.solution-block.warning {
+	border-color: rgba(255, 200, 0, 0.3);
+}
+
+// ── Disabled button ───────────────────────────────────────────────────────────
+
+.crt-btn.disabled {
+	color: $green-dim;
+	border-color: rgba(0, 168, 43, 0.25);
+	pointer-events: none;
+}
+
+// ── CRT scanlines ─────────────────────────────────────────────────────────────
+
+.scanline {
+	position: absolute;
+	left: 0;
+	width: 100%;
+	height: 2px;
+	background-color: rgba(0, 0, 0, 0.35);
+	pointer-events: none;
+	z-index: 100;
+}
+
+// ── Corner brackets ───────────────────────────────────────────────────────────
+
+.corner-bracket {
+	position: absolute;
+	width: 14px;
+	height: 14px;
+	pointer-events: none;
+}
+
+.corner-bracket.tl {
+	top: 4px;
+	left: 4px;
+	border-top: 2px solid $green;
+	border-left: 2px solid $green;
+}
+
+.corner-bracket.tr {
+	top: 4px;
+	right: 4px;
+	border-top: 2px solid $green;
+	border-right: 2px solid $green;
+}
+
+.corner-bracket.bl {
+	bottom: 4px;
+	left: 4px;
+	border-bottom: 2px solid $green;
+	border-left: 2px solid $green;
+}
+
+.corner-bracket.br {
+	bottom: 4px;
+	right: 4px;
+	border-bottom: 2px solid $green;
+	border-right: 2px solid $green;
+}
+
+// ── Asset status colours ──────────────────────────────────────────────────────
+
+.data-value.status-ok {
+	color: $green;
+	text-shadow: 0 0 6px rgba(0, 255, 65, 0.55);
+}
+
+.data-value.status-warn {
+	color: $amber;
+	text-shadow: 0 0 6px rgba(255, 200, 0, 0.55);
+}
+
+.data-value.status-dead {
+	color: #ff4444;
+	text-shadow: 0 0 6px rgba(255, 68, 68, 0.55);
+}
+
+// ── Asset bar (ammo / HP) ─────────────────────────────────────────────────────
+
+.asset-bar-track {
+	display: flex;
+	width: 100%;
+	height: 5px;
+	background-color: rgba(0, 255, 65, 0.08);
+	border: 1px solid $green-dim;
+	margin-top: 4px;
+}
+
+.asset-bar-fill {
+	display: flex;
+	height: 100%;
+	background-color: $green;
+	transition: width 0.1s linear;
+
+	&.status-warn {
+		background-color: rgba(255, 200, 0, 0.85);
+	}
+
+	&.status-dead {
+		background-color: #ff4444;
+	}
+}
+
+// ── No contact state ──────────────────────────────────────────────────────────
+
+.no-contact {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	gap: 4px;
+	color: $green-dim;
+	font-size: 10px;
+	letter-spacing: 2px;
+}

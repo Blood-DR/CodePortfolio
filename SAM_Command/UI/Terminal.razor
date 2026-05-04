@@ -1,0 +1,483 @@
+@using System;
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+@namespace Sandbox
+
+<root class="terminal-root">
+
+	<div class="terminal-header">
+		<span class="terminal-title">// BUNKER CMD //</span>
+		<span class="terminal-day">DAY @DayLabel</span>
+	</div>
+
+	@* DOM order is newest-first; flex-direction: column-reverse in CSS flips
+	   it back to chronological order visually AND pins scroll to the bottom
+	   automatically — no manual ScrollOffset management needed. *@
+	<div class="terminal-output" @ref="_outputPanel">
+		@for ( int i = _history.Count - 1; i >= 0; i-- )
+		{
+			var line = _history[i];
+			<div class="terminal-line @line.Style">@line.Text</div>
+		}
+	</div>
+
+	<div class="terminal-input-row" onclick=@OnRowClicked>
+		<span class="terminal-prompt">&gt;</span>
+		<TextEntry
+			class="terminal-entry"
+			@ref="_input"
+			onsubmit=@OnCommandSubmit />
+	</div>
+
+	@* CRT decorations *@
+	<div class="corner-bracket tl"></div>
+	<div class="corner-bracket tr"></div>
+	<div class="corner-bracket bl"></div>
+	<div class="corner-bracket br"></div>
+
+	@for ( int i = 0; i < ScanlineCount; i++ )
+	{
+		<div class="scanline" style="top:@(i * ScanlineSpacing)px"></div>
+	}
+
+</root>
+
+@code
+{
+	const int ScanlineCount  = 150;
+	const int ScanlineSpacing = 4;
+	const int MaxHistory     = 80;
+
+	// ── Station binding ────────────────────────────────────────────────────────
+
+	[Property] public StationInteractable Station { get; set; }
+
+	bool IsActive => StationManager.Instance?.ActiveStation == Station;
+
+	// ── Panel refs ─────────────────────────────────────────────────────────────
+
+	Panel     _outputPanel;
+	TextEntry _input;
+	bool      _needsFocus;
+
+	// True while the text entry has keyboard focus — StationManager reads this
+	// to suppress the "Use" exit action so typing E doesn't leave the station.
+	public static bool IsCapturingKeyboard { get; private set; }
+
+	// Currently-active SAM site (set via SET <name>). Stored as the GameObject
+	// name string so we re-lookup at fire time — robust to the site being
+	// disabled or destroyed between SET and FIRE.
+	string _activeSiteName;
+
+	// ── History ────────────────────────────────────────────────────────────────
+
+	readonly List<TerminalLine> _history = new();
+
+	// ── Helpers ────────────────────────────────────────────────────────────────
+
+	RadarSystem  Radar   => RadarSystem.Instance;
+	GameManager  Game    => GameManager.Instance;
+	string       DayLabel => Game != null ? Game.CurrentDay.ToString() : "--";
+
+	// ── Lifecycle ──────────────────────────────────────────────────────────────
+
+	protected override void OnStart()
+	{
+		Print( "BUNKER COMMAND TERMINAL ONLINE.", LineStyle.System );
+		Print( "TYPE  HELP  FOR AVAILABLE COMMANDS.", LineStyle.System );
+		Print( "──────────────────────────────────", LineStyle.Divider );
+
+		StationManager.OnStationEntered += OnStationEntered;
+		StationManager.OnStationExited  += OnStationExited;
+	}
+
+	protected override void OnDestroy()
+	{
+		StationManager.OnStationEntered -= OnStationEntered;
+		StationManager.OnStationExited  -= OnStationExited;
+	}
+
+	protected override void OnUpdate()
+	{
+		// Auto-focus the text entry whenever we're at this station and aren't
+		// paused. Covers initial entry, click-outside, and the case where the
+		// escape menu opens then closes (which steals + drops focus).
+		if ( IsActive
+			&& _input != null
+			&& !_input.HasFocus
+			&& EscapeMenu.Instance?.IsOpen != true )
+		{
+			_input.Focus();
+		}
+
+		IsCapturingKeyboard = IsActive && ( _input?.HasFocus ?? false );
+
+		// Legacy needs-focus flag — left in place but the auto-refocus above
+		// makes it largely redundant. Clear it once the input is live.
+		if ( _needsFocus && _input != null )
+			_needsFocus = false;
+	}
+
+	void OnStationEntered( StationInteractable station )
+	{
+		if ( station != Station ) return;
+		_needsFocus = true;
+	}
+
+	void OnStationExited( StationInteractable station )
+	{
+		if ( station != Station ) return;
+		IsCapturingKeyboard = false;
+		if ( _input != null )
+		{
+			_input.Text = "";
+			_input.Blur(); // release keyboard focus so player input goes to game again
+		}
+	}
+
+	// Click anywhere on the input row to refocus the text entry.
+	void OnRowClicked()
+	{
+		if ( IsActive ) _input?.Focus();
+	}
+
+	// ── Command handling ───────────────────────────────────────────────────────
+
+	void OnCommandSubmit()
+	{
+		if ( _input == null ) return;
+		var raw = _input.Text?.Trim() ?? "";
+		_input.Text = "";
+		_input.Focus();
+
+		if ( raw.Length == 0 ) return;
+
+		Print( $"> {raw}", LineStyle.Input );
+		ProcessCommand( raw );
+	}
+
+	void ProcessCommand( string raw )
+	{
+		var parts = raw.Split( ' ', StringSplitOptions.RemoveEmptyEntries );
+		if ( parts.Length == 0 ) return;
+
+		var cmd = parts[0].ToUpperInvariant();
+
+		switch ( cmd )
+		{
+			case "HELP":
+				CmdHelp();
+				break;
+
+			case "STATUS":
+				CmdStatus();
+				break;
+
+			case "SITES":
+				CmdSites();
+				break;
+
+			case "CITIES":
+				CmdCities();
+				break;
+
+			case "SET":
+				CmdSet( parts.ElementAtOrDefault( 1 ) );
+				break;
+
+			case "RELOAD":
+				CmdReload( parts.ElementAtOrDefault( 1 ) );
+				break;
+
+			case "FIRE":
+				// FIRE <code>          → uses active site
+				// FIRE <site> <code>   → explicit override
+				if ( parts.Length == 2 )
+					CmdFire( null, parts[1] );
+				else
+					CmdFire( parts.ElementAtOrDefault( 1 ), parts.ElementAtOrDefault( 2 ) );
+				break;
+
+			case "EXIT":
+			case "QUIT":
+			case "LEAVE":
+				CmdExit();
+				break;
+
+			case "END":
+				if ( parts.Length > 1 && parts[1].Equals( "DAY", StringComparison.OrdinalIgnoreCase ) )
+					CmdEndDay();
+				else
+					Error( "USAGE: END DAY" );
+				break;
+
+			case "ENDDAY":
+			case "NEXTDAY":
+				CmdEndDay();
+				break;
+
+			case "CLEAR":
+			case "CLS":
+				_history.Clear();
+				break;
+
+			default:
+				Error( $"UNKNOWN COMMAND: {cmd}. TYPE HELP." );
+				break;
+		}
+	}
+
+	// ── Commands ───────────────────────────────────────────────────────────────
+
+	void CmdHelp()
+	{
+		Divider();
+		Print( "AVAILABLE COMMANDS:", LineStyle.System );
+		Print( "  HELP               — this list", LineStyle.Output );
+		Print( "  STATUS             — system overview", LineStyle.Output );
+		Print( "  SITES              — SAM site status", LineStyle.Output );
+		Print( "  CITIES             — city integrity", LineStyle.Output );
+		Print( "  SET <site>         — set the active SAM (or SET CLEAR)", LineStyle.Output );
+		Print( "  FIRE <code>        — fire from active SAM with auth code", LineStyle.Output );
+		Print( "  FIRE <site> <code> — fire from named SAM (override)", LineStyle.Output );
+		Print( "  RELOAD <site>      — [DEBUG] refill site to max ammo", LineStyle.Output );
+		Print( "  END DAY            — advance past debrief to the next day", LineStyle.Output );
+		Print( "  EXIT               — leave the station", LineStyle.Output );
+		Print( "  CLEAR              — clear terminal", LineStyle.Output );
+		Print( "", LineStyle.Output );
+		Print( "USE THE RADAR TO ACQUIRE TARGETS AND GENERATE FIRE SOLUTIONS.", LineStyle.System );
+		Print( "BRING THE AUTH CODE TO THIS TERMINAL TO ENGAGE.", LineStyle.System );
+		Divider();
+	}
+
+	void CmdStatus()
+	{
+		if ( Game == null ) { Error( "GAMEMANAGER OFFLINE." ); return; }
+
+		var sites  = Scene.GetAll<SAMSite>().Where( s => s.IsActive ).ToList();
+		var cities = Scene.GetAll<City>().Where( c => c.IsActive ).ToList();
+		var opSites = sites.Count( s => s.IsOperational );
+
+		Divider();
+		Print( $"DAY          : {Game.CurrentDay}", LineStyle.Output );
+		Print( $"PHASE        : {Game.Phase}", LineStyle.Output );
+		Print( $"SAM SITES    : {opSites}/{sites.Count} OPERATIONAL", opSites > 0 ? LineStyle.Output : LineStyle.Error );
+		Print( $"CITIES       : {cities.Count( c => !c.IsDestroyed )}/{cities.Count} STANDING", LineStyle.Output );
+		Print( $"ACTIVE SITE  : {(string.IsNullOrEmpty( _activeSiteName ) ? "<NONE>" : _activeSiteName)}", LineStyle.Output );
+		Divider();
+	}
+
+	void CmdSet( string siteName )
+	{
+		if ( string.IsNullOrWhiteSpace( siteName ) )
+		{
+			Error( "USAGE: SET <site-name>  or  SET CLEAR" );
+			return;
+		}
+
+		if ( siteName.Equals( "CLEAR", StringComparison.OrdinalIgnoreCase ) )
+		{
+			_activeSiteName = null;
+			Print( "ACTIVE SITE CLEARED.", LineStyle.Output );
+			return;
+		}
+
+		var site = Scene.GetAll<SAMSite>().FirstOrDefault( s =>
+			s.IsActive && s.GameObject.Name.Equals( siteName, StringComparison.OrdinalIgnoreCase ) );
+
+		if ( site == null )
+		{
+			Error( $"SAM SITE NOT FOUND: {siteName.ToUpperInvariant()}" );
+			Error( "USE  SITES  TO LIST AVAILABLE UNITS." );
+			return;
+		}
+
+		_activeSiteName = site.GameObject.Name;
+		Print( $"ACTIVE SITE: {_activeSiteName}", LineStyle.Success );
+	}
+
+	// TEMPORARY debug command — refills a site to MaxAmmo. Remove once a real
+	// reload mechanic exists (e.g. resupply during debrief).
+	void CmdReload( string siteName )
+	{
+		if ( string.IsNullOrWhiteSpace( siteName ) )
+		{
+			Error( "USAGE: RELOAD <site-name>" );
+			return;
+		}
+
+		var site = Scene.GetAll<SAMSite>().FirstOrDefault( s =>
+			s.IsActive && s.GameObject.Name.Equals( siteName, StringComparison.OrdinalIgnoreCase ) );
+
+		if ( site == null )
+		{
+			Error( $"SAM SITE NOT FOUND: {siteName.ToUpperInvariant()}" );
+			return;
+		}
+
+		site.Reload();
+		Print( $"{site.GameObject.Name} RELOADED — {site.CurrentAmmo}/{site.MaxAmmo}", LineStyle.Success );
+	}
+
+	void CmdSites()
+	{
+		var sites = Scene.GetAll<SAMSite>().Where( s => s.IsActive ).ToList();
+		if ( sites.Count == 0 ) { Print( "NO ACTIVE SAM SITES.", LineStyle.Output ); return; }
+
+		Divider();
+		Print( "SAM SITES:", LineStyle.System );
+		foreach ( var site in sites )
+		{
+			var status = site.IsDamaged ? "DAMAGED" : (!site.IsOperational ? "NO AMMO" : "READY");
+			var style  = site.IsDamaged ? LineStyle.Error
+			           : !site.IsOperational ? LineStyle.Warning
+			           : LineStyle.Success;
+			Print( $"  {site.GameObject.Name,-12} {site.CurrentAmmo,3}/{site.MaxAmmo,-3} [{status}]", style );
+		}
+		Divider();
+	}
+
+	void CmdCities()
+	{
+		var cities = Scene.GetAll<City>().Where( c => c.IsActive ).ToList();
+		if ( cities.Count == 0 ) { Print( "NO ACTIVE CITIES.", LineStyle.Output ); return; }
+
+		Divider();
+		Print( "CITIES:", LineStyle.System );
+		foreach ( var city in cities )
+		{
+			var status = city.IsDestroyed ? "DESTROYED"
+			           : city.CurrentHP < city.MaxHP ? "DAMAGED"
+			           : "INTACT";
+			var style  = city.IsDestroyed ? LineStyle.Error
+			           : city.CurrentHP < city.MaxHP ? LineStyle.Warning
+			           : LineStyle.Success;
+			Print( $"  {city.Label,-12} HP:{city.CurrentHP}/{city.MaxHP} [{status}]", style );
+		}
+		Divider();
+	}
+
+	void CmdExit()
+	{
+		if ( StationManager.Instance == null || !StationManager.Instance.IsLockedIn )
+		{
+			Error( "NOT AT A STATION." );
+			return;
+		}
+
+		Print( "DISENGAGING…", LineStyle.System );
+		StationManager.Instance.ExitStation();
+	}
+
+	void CmdEndDay()
+	{
+		if ( Game == null ) { Error( "GAMEMANAGER OFFLINE." ); return; }
+
+		if ( Game.Phase != DayPhase.Debrief )
+		{
+			Error( "END DAY ONLY AVAILABLE IN DEBRIEF PHASE." );
+			Error( $"CURRENT PHASE: {Game.Phase}" );
+			return;
+		}
+
+		Game.ConfirmDebrief(); // increments CurrentDay, saves, begins next day
+
+		// Fresh terminal for a fresh day — wipe the log and reprint the banner.
+		_history.Clear();
+		Print( "BUNKER COMMAND TERMINAL ONLINE.", LineStyle.System );
+		Print( $"DAY {Game.CurrentDay} BEGINS. TYPE  HELP  FOR COMMANDS.", LineStyle.System );
+		Print( "──────────────────────────────────", LineStyle.Divider );
+	}
+
+	void CmdFire( string siteId, string code )
+	{
+		if ( string.IsNullOrWhiteSpace( code ) )
+		{
+			Error( "USAGE: FIRE <code>  or  FIRE <site> <code>" );
+			return;
+		}
+
+		// One-arg form (FIRE <code>) — fall back to the active site set via SET.
+		if ( string.IsNullOrWhiteSpace( siteId ) )
+		{
+			if ( string.IsNullOrEmpty( _activeSiteName ) )
+			{
+				Error( "NO ACTIVE SITE." );
+				Error( "USE  SET <site>  OR  FIRE <site> <code>." );
+				return;
+			}
+			siteId = _activeSiteName;
+		}
+
+		// Site lookup — case-insensitive match against GameObject name.
+		var site = Scene.GetAll<SAMSite>().FirstOrDefault( s =>
+			s.IsActive && s.GameObject.Name.Equals( siteId, StringComparison.OrdinalIgnoreCase ) );
+
+		if ( site == null )
+		{
+			Error( $"SAM SITE NOT FOUND: {siteId.ToUpperInvariant()}" );
+			Error( "USE  SITES  TO LIST AVAILABLE UNITS." );
+			return;
+		}
+
+		if ( !site.IsOperational )
+		{
+			Error( $"{site.GameObject.Name} IS NOT OPERATIONAL." );
+			return;
+		}
+
+		// Find any active aircraft whose code matches what the player typed.
+		// We don't care if it's the radar's currently-selected contact; the
+		// player got the code from the radar, and now they're firing at
+		// whoever still holds that code.
+		var target = Scene.GetAll<Aircraft>().FirstOrDefault( a =>
+			!a.IsResolved && string.Equals( a.FireControlCode, code, StringComparison.OrdinalIgnoreCase ) );
+
+		if ( target != null )
+		{
+			site.TryFire( code, target );        // consumes ammo, validates code
+			site.LaunchMissile( target );        // spawns the homing missile in-world
+			Print( $"MISSILE AWAY — {site.GameObject.Name} ENGAGED {target.GameObject.Name}.", LineStyle.Success );
+			Print( $"AMMO REMAINING: {site.CurrentAmmo}/{site.MaxAmmo}", LineStyle.Output );
+		}
+		else
+		{
+			// Code doesn't match any active contact — could be a typo, or the
+			// target maneuvered and rotated its code, or it was already
+			// destroyed. Fire and miss either way: ammo is consumed.
+			site.TryFire();
+			Print( $"MISSILE AWAY — {site.GameObject.Name}.", LineStyle.Output );
+			Error( "CODE INVALID OR TARGET LOST — MISSILE WILL MISS." );
+			Print( $"AMMO REMAINING: {site.CurrentAmmo}/{site.MaxAmmo}", LineStyle.Output );
+		}
+	}
+
+	// ── Print helpers ──────────────────────────────────────────────────────────
+
+	void Print( string text, LineStyle style = LineStyle.Output )
+	{
+		_history.Add( new TerminalLine( text, style ) );
+		if ( _history.Count > MaxHistory )
+			_history.RemoveAt( 0 );
+	}
+
+	void Error( string text )   => Print( text, LineStyle.Error );
+	void Divider()              => Print( "──────────────────────────────────", LineStyle.Divider );
+
+	// ── Build hash ─────────────────────────────────────────────────────────────
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		_history.Count,
+		IsActive,
+		Radar?.SelectedContact?.GetHashCode() ?? 0,
+		Radar?.ActiveFireSolution?.FireControlCode,
+		Game?.CurrentDay ?? 0,
+		// Continuous low-frequency tick — keeps the panel re-rendering at a
+		// steady cadence instead of jumping from "stale" to "rebuilt" on each
+		// command. Hides the post-command full-rebuild flicker.
+		(int)(Time.Now * 6)
+	);
+}
+

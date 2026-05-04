@@ -1,0 +1,177 @@
+$phosphor:       #4af66c;
+$phosphor-dim:   #1e5c30;
+$phosphor-faint: rgba(74, 246, 108, 0.08);
+$phosphor-glow:  rgba(74, 246, 108, 0.55);
+$bright:         #ccffdd;
+$amber:          rgba(255, 200, 0, 0.9);
+$red:            #ff4444;
+$bg:             #030a04;
+
+// ── Root ──────────────────────────────────────────────────────────────────────
+
+.terminal-root {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	background-color: $bg;
+	box-shadow: 0 0 40px rgba(74, 246, 108, 0.15);
+	font-family: Consolas, monospace;
+	font-size: 11px;
+	color: $phosphor;
+	pointer-events: all;
+	position: relative;
+	overflow: hidden;
+	padding: 14px;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+.terminal-header {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1px solid $phosphor-dim;
+	padding-bottom: 8px;
+	margin-bottom: 10px;
+	letter-spacing: 2px;
+	font-size: 10px;
+	color: $phosphor-dim;
+	flex-shrink: 0;
+}
+
+.terminal-title {
+	display: flex;
+	color: $phosphor-dim;
+}
+
+.terminal-day {
+	display: flex;
+	color: $phosphor-dim;
+}
+
+// ── Output history ─────────────────────────────────────────────────────────────
+
+.terminal-output {
+	display: flex;
+	// column-reverse pairs with reverse-iteration in Razor: DOM is newest-first,
+	// flex flips it back to chronological order, and scroll auto-pins to the
+	// bottom (which is ScrollOffset.Y = 0 in reverse-flex).
+	flex-direction: column-reverse;
+	flex: 1;
+	overflow-y: scroll;
+	gap: 4px;
+	margin-bottom: 10px;
+	padding-right: 4px;
+}
+
+// ── Line types ─────────────────────────────────────────────────────────────────
+
+.terminal-line {
+	display: flex;
+	white-space: pre;
+	letter-spacing: 0.5px;
+	min-height: 16px;
+	padding: 1px 0;
+	flex-shrink: 0;
+}
+
+.terminal-line.input {
+	color: $bright;
+	text-shadow: 0 0 8px $phosphor-glow;
+}
+
+.terminal-line.output {
+	color: $phosphor;
+}
+
+.terminal-line.success {
+	color: $bright;
+	text-shadow: 0 0 10px $phosphor-glow, 0 0 20px rgba(74, 246, 108, 0.25);
+}
+
+.terminal-line.warning {
+	color: $amber;
+	text-shadow: 0 0 6px rgba(255, 200, 0, 0.4);
+}
+
+.terminal-line.error {
+	color: $red;
+	text-shadow: 0 0 6px rgba(255, 68, 68, 0.4);
+}
+
+.terminal-line.system {
+	color: $phosphor-dim;
+	font-style: italic;
+}
+
+.terminal-line.divider {
+	color: $phosphor-dim;
+	opacity: 0.4;
+}
+
+// ── Input row ─────────────────────────────────────────────────────────────────
+
+.terminal-input-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+	border-top: 1px solid $phosphor-dim;
+	padding-top: 8px;
+	flex-shrink: 0;
+}
+
+.terminal-prompt {
+	display: flex;
+	color: $phosphor;
+	text-shadow: 0 0 8px $phosphor-glow;
+	font-size: 13px;
+	flex-shrink: 0;
+}
+
+.terminal-entry {
+	display: flex;
+	flex: 1;
+	background-color: transparent;
+	border: none;
+	color: $bright;
+	font-family: Consolas, monospace;
+	font-size: 11px;
+	letter-spacing: 0.5px;
+	text-shadow: 0 0 8px $phosphor-glow;
+	caret-color: $phosphor;
+	pointer-events: all;
+}
+
+.terminal-entry:focus {
+	outline: none;
+}
+
+// ── CRT scanlines ─────────────────────────────────────────────────────────────
+
+.scanline {
+	position: absolute;
+	left: 0;
+	width: 100%;
+	height: 2px;
+	background-color: rgba(0, 0, 0, 0.3);
+	pointer-events: none;
+	z-index: 100;
+}
+
+// ── Corner brackets ───────────────────────────────────────────────────────────
+
+.corner-bracket {
+	position: absolute;
+	width: 12px;
+	height: 12px;
+	pointer-events: none;
+	z-index: 101;
+}
+
+.corner-bracket.tl { top: 4px; left: 4px;   border-top: 2px solid $phosphor; border-left:  2px solid $phosphor; }
+.corner-bracket.tr { top: 4px; right: 4px;  border-top: 2px solid $phosphor; border-right: 2px solid $phosphor; }
+.corner-bracket.bl { bottom: 4px; left: 4px;  border-bottom: 2px solid $phosphor; border-left:  2px solid $phosphor; }
+.corner-bracket.br { bottom: 4px; right: 4px; border-bottom: 2px solid $phosphor; border-right: 2px solid $phosphor; }

@@ -1,0 +1,587 @@
+@using System;
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+@namespace Sandbox
+
+<root>
+	@if ( _bootPhase == BootPhase.Complete )
+	{
+		<div class="tree-panel">
+			<div class="tree-header">/var/sys</div>
+			@foreach ( var line in _treeLines )
+			{
+				<div class="tree-line">@line</div>
+			}
+		</div>
+	}
+
+    <div class="crt-beam"></div>
+    <div class="crt-scanlines">
+		@for ( int i = 0; i < ScanlineCount; i++ )
+		{
+			<div class="scanline" style="top: @(F( i * 100f / ScanlineCount ))%;"></div>
+		}
+    </div>
+
+	@if ( _isTransitioning )
+	{
+		<div class="transition-overlay"></div>
+		<div class="transition-line"></div>
+	}
+
+	@if ( _bootPhase != BootPhase.Complete )
+	{
+		<div class="boot-screen">
+			<div class="boot-output">
+				@foreach ( var line in _bootLines )
+				{
+					<div class="boot-line @(line.StartsWith("> ") ? "cmd" : "")">@line</div>
+				}
+
+				@if ( _bootPhase == BootPhase.TypingCommand || _bootPhase == BootPhase.CommandFinished )
+				{
+					<div class="boot-line cmd typing">&gt; @_bootCurrentInput<span class="boot-cursor @(_cursorOn ? "on" : "")"></span></div>
+				}
+
+				@if ( _bootPhase == BootPhase.AwaitEnter )
+				{
+					<div class="boot-line press-enter">&gt; PRESS ENTER TO CONTINUE<span class="boot-cursor @(_cursorOn ? "on" : "")"></span></div>
+				}
+			</div>
+
+			@if ( _bootPhase == BootPhase.Calibration )
+			{
+				<div class="calibration">
+					<div class="cal-title">// AUDIO CALIBRATION REQUIRED //</div>
+					<div class="cal-info">SET MASTER VOLUME TO COMFORTABLE LEVEL</div>
+					<div class="cal-info subtle">(no test tone — adjust to your preference)</div>
+
+					<div class="cal-row">
+						<button class="step-btn" onclick=@(() => Adjust(ref _masterVol, -10, 0, 100))>&lt;</button>
+						<div class="cal-meter">
+							<div class="meter-fill" style="width: @(_masterVol)%;"></div>
+						</div>
+						<button class="step-btn" onclick=@(() => Adjust(ref _masterVol, 10, 0, 100))>&gt;</button>
+					</div>
+					<div class="cal-value">@_masterVol%</div>
+
+					<button class="btn confirm-btn" onclick=@OnConfirmCalibration>[ CONFIRM ]</button>
+				</div>
+			}
+		</div>
+	}
+	else
+	{
+	<div class="menu @(_isTransitioning ? "shutting-down" : "")">
+		<div class="header">
+			<div class="title">SAM COMMAND</div>
+			<div class="subtitle">@_typedSubtitle<span class="cursor @(_cursorOn ? "on" : "")">_</span></div>
+		</div>
+
+		@if ( !_showSettings )
+		{
+			<div class="buttons">
+				<button class="btn @(CanContinue ? "" : "disabled")" onclick=@OnContinue>CONTINUE</button>
+				<button class="btn" onclick=@OnNewGame>NEW GAME</button>
+				@if ( EndlessUnlocked )
+				{
+					<button class="btn" onclick=@OnEndlessMode>ENDLESS MODE</button>
+				}
+				<button class="btn" onclick=@OnSettings>SETTINGS</button>
+				<button class="btn" onclick=@OnQuit>QUIT</button>
+			</div>
+		}
+		else
+		{
+			<div class="settings">
+				<div class="setting-row">
+					<div class="label">MASTER VOLUME</div>
+					<div class="control">
+						<button class="step-btn" onclick=@(() => Adjust(ref _masterVol, -10, 0, 100))>&lt;</button>
+						<div class="value">@_masterVol</div>
+						<button class="step-btn" onclick=@(() => Adjust(ref _masterVol, 10, 0, 100))>&gt;</button>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="label">MUSIC VOLUME</div>
+					<div class="control">
+						<button class="step-btn" onclick=@(() => Adjust(ref _musicVol, -10, 0, 100))>&lt;</button>
+						<div class="value">@_musicVol</div>
+						<button class="step-btn" onclick=@(() => Adjust(ref _musicVol, 10, 0, 100))>&gt;</button>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="label">SFX VOLUME</div>
+					<div class="control">
+						<button class="step-btn" onclick=@(() => Adjust(ref _sfxVol, -10, 0, 100))>&lt;</button>
+						<div class="value">@_sfxVol</div>
+						<button class="step-btn" onclick=@(() => Adjust(ref _sfxVol, 10, 0, 100))>&gt;</button>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="label">MOUSE SENSITIVITY</div>
+					<div class="control">
+						<button class="step-btn" onclick=@(() => Adjust(ref _mouseSens, -10, 10, 200))>&lt;</button>
+						<div class="value">@_mouseSens</div>
+						<button class="step-btn" onclick=@(() => Adjust(ref _mouseSens, 10, 10, 200))>&gt;</button>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="label">CRT EFFECTS</div>
+					<div class="control">
+						<button class="toggle-btn" onclick=@(() => _crtEnabled = !_crtEnabled)>
+							[ @(_crtEnabled ? "ON" : "OFF") ]
+						</button>
+					</div>
+				</div>
+
+				<div class="setting-row">
+					<div class="label">FULLSCREEN</div>
+					<div class="control">
+						<button class="toggle-btn" onclick=@(() => _fullscreen = !_fullscreen)>
+							[ @(_fullscreen ? "ON" : "OFF") ]
+						</button>
+					</div>
+				</div>
+
+				<button class="btn back-btn" onclick=@OnBackToMenu>&lt; BACK</button>
+			</div>
+		}
+
+		<div class="footer">
+			@foreach ( var line in _statusLog )
+			{
+				<div class="log-line">@line</div>
+			}
+		</div>
+	</div>
+	}
+</root>
+
+@code
+{
+    // Continue is only available while a save exists AND the campaign isn't
+    // marked complete. Once finished, the player must start New Game or
+    // play endless Mode.
+    public bool CanContinue => SaveSystem.HasSave() && !SaveSystem.IsCampaignComplete();
+    public bool EndlessUnlocked => SaveSystem.IsEndlessUnlocked();
+
+    // === Typewriter subtitle ===
+    // Flavour text lives in TerminalFlavour.cs (purely cosmetic, edit there)
+    private static string[] _subtitles => TerminalFlavour.Subtitles;
+
+    private int _subtitleIndex = 0;
+    private string _typedSubtitle = "";
+    private float _nextCharTime = 0f;
+    private float _lineCompleteTime = 0f;
+    private bool _isTyping = true;
+    private const float TypeSpeed = 0.05f;
+    private const float HoldTime = 3.5f;
+
+
+
+    // === Blinking cursor ===
+    private bool _cursorOn = true;
+    private float _nextBlinkTime = 0f;
+    private const float BlinkSpeed = 0.5f;
+
+    // === Status log ===
+    private readonly List<string> _statusLog = new();
+    private float _nextLogTime = 0f;
+    // Flavour text lives in TerminalFlavour.cs (purely cosmetic, edit there)
+    private static string[] _logMessages => TerminalFlavour.LogMessages;
+    private int _logIndex = 0;
+    private const int MaxLogLines = 4;
+
+    // === Scanlines ===
+    private const int ScanlineCount = 190;
+    static string F( float v ) => v.ToString( "F2", System.Globalization.CultureInfo.InvariantCulture );
+
+
+    // === Tree panel ===
+    private readonly List<string> _treeLines = new();
+    private float _nextTreeTime = 0f;
+    private int _treeIndex = 0;
+    private const int MaxTreeLines = 32;
+
+    // === First-boot intro ===
+    public enum BootPhase
+    {
+        TypingCommand,    // Typing out the current command character by character
+        CommandFinished,  // Brief pause after command typed before output begins
+        StreamingOutput,  // Adding output lines one at a time
+        WaitingNext,      // Pause between commands
+        Calibration,      // Audio calibration UI
+        AwaitEnter,       // "Press ENTER to continue" prompt
+        Complete
+    }
+
+    private BootPhase _bootPhase = BootPhase.Complete;
+    private bool _bootIsPostCalibration = false;
+    private readonly List<string> _bootLines = new();
+
+    private int _bootCmdIndex = 0;       // which command in the current array
+    private int _bootOutputIndex = 0;    // which output line of the current command
+    private int _bootCharIndex = 0;      // how many chars of the current command have been typed
+    private string _bootCurrentInput = "";
+
+    private float _nextBootCharTime = 0f;
+    private float _nextBootLineTime = 0f;
+    private float _bootPauseUntil = 0f;
+
+    private const float CharTypeMin = 0.025f;
+    private const float CharTypeMax = 0.08f;
+    private const float CommandFinishedDelay = 0.4f;
+    private const float OutputLineDelay = 0.18f;
+    private const float WaitNextCommandDelay = 0.7f;
+    private const float CalibrationOpenDelay = 1.2f;
+
+    protected override void OnStart()
+    {
+        if ( SettingsSystem.HasSettings() )
+        {
+            var s = SettingsSystem.Load();
+            _masterVol = s.MasterVolume;
+            _musicVol = s.MusicVolume;
+            _sfxVol = s.SfxVolume;
+            _mouseSens = s.MouseSensitivity;
+            _crtEnabled = s.CrtEnabled;
+            _fullscreen = s.Fullscreen;
+            _bootPhase = BootPhase.Complete;
+        }
+        else
+        {
+            StartBootSequence( postCalibration: false );
+        }
+    }
+
+    void StartBootSequence( bool postCalibration )
+    {
+        _bootIsPostCalibration = postCalibration;
+        _bootCmdIndex = 0;
+        _bootCharIndex = 0;
+        _bootOutputIndex = 0;
+        _bootCurrentInput = "";
+        _bootPhase = BootPhase.TypingCommand;
+        _nextBootCharTime = Time.Now + 0.8f; // brief delay before first command starts typing
+    }
+
+    protected override void OnUpdate()
+    {
+		TickBoot();
+		TickTypewriter();
+		TickCursor();
+		TickStatusLog();
+		TickTransition();
+		TickTreePanel();
+		TickAwaitEnter();
+	}
+
+	void TickAwaitEnter()
+	{
+		if ( _bootPhase != BootPhase.AwaitEnter ) return;
+
+		// Press Enter (or Use as a fallback) to advance from the boot prompt
+		if ( Input.Pressed( "Enter" ) || Input.Pressed( "Use" ) )
+		{
+			OnEnterPressed();
+		}
+	}
+
+	void TickBoot()
+	{
+		if ( _bootPhase == BootPhase.Complete || _bootPhase == BootPhase.Calibration || _bootPhase == BootPhase.AwaitEnter )
+			return;
+
+		var rng = System.Random.Shared;
+		var commands = _bootIsPostCalibration ? TerminalFlavour.BootCommandsPost : TerminalFlavour.BootCommandsPre;
+
+		switch ( _bootPhase )
+		{
+			case BootPhase.TypingCommand:
+			{
+				if ( Time.Now < _nextBootCharTime ) return;
+
+				var cmd = commands[_bootCmdIndex].Command;
+				if ( _bootCharIndex < cmd.Length )
+				{
+					_bootCharIndex++;
+					_bootCurrentInput = cmd.Substring( 0, _bootCharIndex );
+					var d = CharTypeMin + (float)rng.NextDouble() * ( CharTypeMax - CharTypeMin );
+					_nextBootCharTime = Time.Now + d;
+				}
+				else
+				{
+					_bootPhase = BootPhase.CommandFinished;
+					_bootPauseUntil = Time.Now + CommandFinishedDelay;
+				}
+				break;
+			}
+
+			case BootPhase.CommandFinished:
+			{
+				if ( Time.Now < _bootPauseUntil ) return;
+
+				// Commit the typed command into the history
+				_bootLines.Add( "> " + commands[_bootCmdIndex].Command );
+				_bootCurrentInput = "";
+				_bootOutputIndex = 0;
+				_bootPhase = BootPhase.StreamingOutput;
+				_nextBootLineTime = Time.Now + 0.15f;
+				break;
+			}
+
+			case BootPhase.StreamingOutput:
+			{
+				if ( Time.Now < _nextBootLineTime ) return;
+
+				var output = commands[_bootCmdIndex].Output;
+				if ( _bootOutputIndex < output.Length )
+				{
+					_bootLines.Add( output[_bootOutputIndex] );
+					_bootOutputIndex++;
+					_nextBootLineTime = Time.Now + OutputLineDelay + (float)rng.NextDouble() * 0.1f;
+				}
+				else
+				{
+					// Output finished — was this the calibration trigger?
+					bool isLastPreCommand = !_bootIsPostCalibration && _bootCmdIndex >= commands.Length - 1;
+
+					if ( isLastPreCommand )
+					{
+						_bootPhase = BootPhase.Calibration;
+						_bootPauseUntil = Time.Now + CalibrationOpenDelay;
+					}
+					else if ( _bootCmdIndex >= commands.Length - 1 )
+					{
+						// Post-calibration finished — wait for ENTER
+						_bootPhase = BootPhase.AwaitEnter;
+					}
+					else
+					{
+						_bootPhase = BootPhase.WaitingNext;
+						_bootPauseUntil = Time.Now + WaitNextCommandDelay;
+					}
+				}
+				break;
+			}
+
+			case BootPhase.WaitingNext:
+			{
+				if ( Time.Now < _bootPauseUntil ) return;
+				_bootCmdIndex++;
+				_bootCharIndex = 0;
+				_bootCurrentInput = "";
+				_bootPhase = BootPhase.TypingCommand;
+				_nextBootCharTime = Time.Now;
+				break;
+			}
+		}
+	}
+
+	void OnConfirmCalibration()
+	{
+		SettingsSystem.Save( new SettingsData
+		{
+			MasterVolume = _masterVol,
+			MusicVolume = _musicVol,
+			SfxVolume = _sfxVol,
+			MouseSensitivity = _mouseSens,
+			CrtEnabled = _crtEnabled,
+			Fullscreen = _fullscreen,
+		} );
+
+		StartBootSequence( postCalibration: true );
+	}
+
+	void OnEnterPressed()
+	{
+		_bootPhase = BootPhase.Complete;
+		_bootLines.Clear();
+		_bootCurrentInput = "";
+	}
+
+	void TickTreePanel()
+	{
+		if ( _bootPhase != BootPhase.Complete ) return;
+		if ( Time.Now < _nextTreeTime ) return;
+
+		var rng = System.Random.Shared;
+
+		// 30% chance of a burst (2-4 lines), otherwise single line
+		int count = rng.NextDouble() < 0.3 ? rng.Next( 2, 5 ) : 1;
+
+		for ( int i = 0; i < count; i++ )
+		{
+			_treeLines.Add( TerminalFlavour.TreeEntries[_treeIndex] );
+			_treeIndex = ( _treeIndex + 1 ) % TerminalFlavour.TreeEntries.Length;
+
+			if ( _treeLines.Count > MaxTreeLines )
+				_treeLines.RemoveAt( 0 );
+		}
+
+		// Sporadic — random delay 0.4 to 3.5 seconds
+		_nextTreeTime = Time.Now + 0.4f + (float)rng.NextDouble() * 3.1f;
+	}
+
+	// === Scene transition ===
+	private bool _isTransitioning = false;
+	private float _transitionStart;
+	private string _pendingScene;
+	private const float TransitionDuration = 0.9f;
+
+	void StartTransition( string scenePath )
+	{
+		if ( _isTransitioning ) return;
+		_isTransitioning = true;
+		_transitionStart = Time.Now;
+		_pendingScene = scenePath;
+	}
+
+	void TickTransition()
+	{
+		if ( !_isTransitioning ) return;
+		if ( Time.Now - _transitionStart < TransitionDuration ) return;
+
+		var options = new SceneLoadOptions { ShowLoadingScreen = false };
+		options.SetScene( _pendingScene );
+		Sandbox.Game.ChangeScene( options );
+	}
+
+
+	void TickTypewriter()
+	{
+		if ( _bootPhase != BootPhase.Complete ) return;
+		var target = _subtitles[_subtitleIndex];
+
+		if ( _isTyping )
+		{
+			if ( Time.Now >= _nextCharTime && _typedSubtitle.Length < target.Length )
+			{
+				_typedSubtitle = target.Substring( 0, _typedSubtitle.Length + 1 );
+				_nextCharTime = Time.Now + TypeSpeed;
+			}
+			else if ( _typedSubtitle.Length >= target.Length )
+			{
+				_isTyping = false;
+				_lineCompleteTime = Time.Now;
+			}
+		}
+		else if ( Time.Now - _lineCompleteTime >= HoldTime )
+		{
+			_typedSubtitle = "";
+			_subtitleIndex = ( _subtitleIndex + 1 ) % _subtitles.Length;
+			_isTyping = true;
+			_nextCharTime = Time.Now;
+		}
+	}
+
+	void TickCursor()
+	{
+		if ( Time.Now >= _nextBlinkTime )
+		{
+			_cursorOn = !_cursorOn;
+			_nextBlinkTime = Time.Now + BlinkSpeed;
+		}
+	}
+
+	void TickStatusLog()
+	{
+		if ( _bootPhase != BootPhase.Complete ) return;
+		if ( Time.Now < _nextLogTime ) return;
+
+		_statusLog.Add( _logMessages[_logIndex] );
+		_logIndex = ( _logIndex + 1 ) % _logMessages.Length;
+
+		if ( _statusLog.Count > MaxLogLines )
+			_statusLog.RemoveAt( 0 );
+
+		_nextLogTime = Time.Now + 1.2f;
+	}
+
+	void OnContinue()
+	{
+		if ( !CanContinue ) return;
+		Log.Info( "[MainMenu] Continue clicked" );
+		GameSession.SelectedMode    = GameMode.Campaign;
+		GameSession.LaunchedFromMenu = true;
+		GameSession.IsContinue      = true;
+		StartTransition( "scenes/maingame.scene" );
+	}
+
+	void OnNewGame()
+	{
+		Log.Info( "[MainMenu] New Game clicked" );
+		// Reset campaign run-state but preserve EndlessUnlocked so the player
+		// doesn't lose their endless-mode unlock by starting a new campaign.
+		SaveSystem.ResetCampaignProgress();
+		GameSession.SelectedMode    = GameMode.Campaign;
+		GameSession.LaunchedFromMenu = true;
+		GameSession.IsContinue      = false;
+		StartTransition( "scenes/maingame.scene" );
+	}
+
+	void OnEndlessMode()
+	{
+		Log.Info( "[MainMenu] Endless Mode clicked" );
+		GameSession.SelectedMode    = GameMode.Endless;
+		GameSession.LaunchedFromMenu = true;
+		GameSession.IsContinue      = false;
+		StartTransition( "scenes/maingame.scene" );
+	}
+
+	// === Settings state ===
+	private bool _showSettings = false;
+	private int _masterVol = 80;
+	private int _musicVol = 60;
+	private int _sfxVol = 80;
+	private int _mouseSens = 100;
+	private bool _crtEnabled = true;
+	private bool _fullscreen = true;
+
+	void OnSettings()
+	{
+		_showSettings = true;
+	}
+
+	void OnBackToMenu()
+	{
+		_showSettings = false;
+		SettingsSystem.Save( new SettingsData
+		{
+			MasterVolume = _masterVol,
+			MusicVolume = _musicVol,
+			SfxVolume = _sfxVol,
+			MouseSensitivity = _mouseSens,
+			CrtEnabled = _crtEnabled,
+			Fullscreen = _fullscreen,
+		} );
+	}
+
+
+	void Adjust( ref int value, int delta, int min, int max )
+	{
+		value = Math.Clamp( value + delta, min, max );
+	}
+
+	void OnQuit()
+	{
+		Game.Close();
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		CanContinue,
+		EndlessUnlocked,
+		_typedSubtitle,
+		_cursorOn,
+		_statusLog.Count > 0 ? _statusLog[^1] : "",
+		_showSettings,
+		_isTransitioning,
+		HashCode.Combine( _treeLines.Count > 0 ? _treeLines[^1] : "", _bootPhase, _bootLines.Count, _bootCurrentInput, _masterVol, _musicVol, _sfxVol, HashCode.Combine( _mouseSens, _crtEnabled, _fullscreen ) )
+	);
+}

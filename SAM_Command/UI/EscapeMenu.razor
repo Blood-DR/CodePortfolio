@@ -1,0 +1,228 @@
+@using System;
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+@namespace Sandbox
+
+<root>
+	@if ( IsOpen )
+	{
+		<div class="backdrop"></div>
+
+		<div class="escape-panel @(_showSettings ? "wide" : "")">
+			<div class="panel-header">
+				<div class="panel-title">// PAUSED //</div>
+				<div class="panel-day">DAY @DayLabel</div>
+			</div>
+
+			@if ( !_showSettings )
+			{
+				<div class="buttons">
+					<button class="btn" onclick=@OnResume>[ RESUME ]</button>
+					<button class="btn" onclick=@OnSettings>[ SETTINGS ]</button>
+					<button class="btn" onclick=@OnMainMenu>[ MAIN MENU ]</button>
+					<button class="btn quit-btn" onclick=@OnQuit>[ QUIT TO DESKTOP ]</button>
+				</div>
+			}
+			else
+			{
+				<div class="settings">
+					<div class="setting-row">
+						<div class="label">MASTER VOLUME</div>
+						<div class="control">
+							<button class="step-btn" onclick=@(() => Adjust( ref _masterVol, -10, 0, 100 ))>&lt;</button>
+							<div class="value">@_masterVol</div>
+							<button class="step-btn" onclick=@(() => Adjust( ref _masterVol, 10, 0, 100 ))>&gt;</button>
+						</div>
+					</div>
+
+					<div class="setting-row">
+						<div class="label">MUSIC VOLUME</div>
+						<div class="control">
+							<button class="step-btn" onclick=@(() => Adjust( ref _musicVol, -10, 0, 100 ))>&lt;</button>
+							<div class="value">@_musicVol</div>
+							<button class="step-btn" onclick=@(() => Adjust( ref _musicVol, 10, 0, 100 ))>&gt;</button>
+						</div>
+					</div>
+
+					<div class="setting-row">
+						<div class="label">SFX VOLUME</div>
+						<div class="control">
+							<button class="step-btn" onclick=@(() => Adjust( ref _sfxVol, -10, 0, 100 ))>&lt;</button>
+							<div class="value">@_sfxVol</div>
+							<button class="step-btn" onclick=@(() => Adjust( ref _sfxVol, 10, 0, 100 ))>&gt;</button>
+						</div>
+					</div>
+
+					<div class="setting-row">
+						<div class="label">MOUSE SENSITIVITY</div>
+						<div class="control">
+							<button class="step-btn" onclick=@(() => Adjust( ref _mouseSens, -10, 10, 200 ))>&lt;</button>
+							<div class="value">@_mouseSens</div>
+							<button class="step-btn" onclick=@(() => Adjust( ref _mouseSens, 10, 10, 200 ))>&gt;</button>
+						</div>
+					</div>
+
+					<div class="setting-row">
+						<div class="label">CRT EFFECTS</div>
+						<div class="control">
+							<button class="toggle-btn" onclick=@(() => _crtEnabled = !_crtEnabled)>
+								[ @(_crtEnabled ? "ON" : "OFF") ]
+							</button>
+						</div>
+					</div>
+
+					<div class="setting-row">
+						<div class="label">FULLSCREEN</div>
+						<div class="control">
+							<button class="toggle-btn" onclick=@(() => _fullscreen = !_fullscreen)>
+								[ @(_fullscreen ? "ON" : "OFF") ]
+							</button>
+						</div>
+					</div>
+
+					<button class="btn back-btn" onclick=@OnBackToMenu>&lt; BACK</button>
+				</div>
+			}
+		</div>
+	}
+</root>
+
+@code
+{
+	public static EscapeMenu Instance { get; private set; }
+	public bool IsOpen { get; private set; } = false;
+
+	private bool _showSettings = false;
+
+	private int _masterVol = 80;
+	private int _musicVol = 60;
+	private int _sfxVol = 80;
+	private int _mouseSens = 100;
+	private bool _crtEnabled = true;
+	private bool _fullscreen = true;
+
+	private string DayLabel => GameManager.Instance != null
+		? GameManager.Instance.CurrentDay.ToString()
+		: "--";
+
+	protected override void OnStart()
+	{
+		Instance = this;
+
+		// Game scene starts with cursor hidden. S&Box's auto cursor-management
+		// is disabled once anything calls Mouse.Visibility, so we own it here.
+		Mouse.Visibility = MouseVisibility.Hidden;
+
+		if ( SettingsSystem.HasSettings() )
+		{
+			var s = SettingsSystem.Load();
+			_masterVol = s.MasterVolume;
+			_musicVol = s.MusicVolume;
+			_sfxVol = s.SfxVolume;
+			_mouseSens = s.MouseSensitivity;
+			_crtEnabled = s.CrtEnabled;
+			_fullscreen = s.Fullscreen;
+		}
+	}
+
+	protected override void OnUpdate()
+	{
+		if ( Input.EscapePressed )
+		{
+			Input.EscapePressed = false;
+			if ( IsOpen )
+				Close();
+			else
+				Open();
+		}
+	}
+
+	void Open()
+	{
+		IsOpen = true;
+		_showSettings = false;
+		Scene.TimeScale = 0f;
+
+		// Show cursor when not at a station (station system owns cursor when locked in).
+		// Don't touch LookController — TimeScale=0 zeroes out Time.Delta so it can't rotate.
+		if ( StationManager.Instance == null || !StationManager.Instance.IsLockedIn )
+			Mouse.Visibility = MouseVisibility.Visible;
+	}
+
+	void Close()
+	{
+		IsOpen = false;
+		_showSettings = false;
+		Scene.TimeScale = 1f;
+
+		if ( StationManager.Instance == null || !StationManager.Instance.IsLockedIn )
+			Mouse.Visibility = MouseVisibility.Hidden;
+	}
+
+	void OnResume()
+	{
+		Close();
+	}
+
+	void OnSettings()
+	{
+		_showSettings = true;
+	}
+
+	void OnBackToMenu()
+	{
+		SaveSettings();
+		_showSettings = false;
+	}
+
+	void OnMainMenu()
+	{
+		SaveSettings();
+		IsOpen = false;
+		Scene.TimeScale = 1f;
+		Mouse.Visibility = MouseVisibility.Visible;
+		var options = new SceneLoadOptions { ShowLoadingScreen = false };
+		options.SetScene( "scenes/mainmenu.scene" );
+		Sandbox.Game.ChangeScene( options );
+	}
+
+	protected override void OnDestroy()
+	{
+		if ( Instance == this ) Instance = null;
+	}
+
+	void OnQuit()
+	{
+		Game.Close();
+	}
+
+	void SaveSettings()
+	{
+		SettingsSystem.Save( new SettingsData
+		{
+			MasterVolume = _masterVol,
+			MusicVolume = _musicVol,
+			SfxVolume = _sfxVol,
+			MouseSensitivity = _mouseSens,
+			CrtEnabled = _crtEnabled,
+			Fullscreen = _fullscreen,
+		} );
+	}
+
+	void Adjust( ref int value, int delta, int min, int max )
+	{
+		value = Math.Clamp( value + delta, min, max );
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		IsOpen,
+		_showSettings,
+		_masterVol,
+		_musicVol,
+		_sfxVol,
+		_mouseSens,
+		_crtEnabled,
+		_fullscreen
+	);
+}

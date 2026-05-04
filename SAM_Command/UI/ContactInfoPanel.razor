@@ -1,0 +1,265 @@
+@using System;
+@using System.Linq;
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+@namespace Sandbox
+
+<root class="contact-root">
+
+	<div class="contact-header">@PanelTitle</div>
+
+	@if ( Radar?.SelectedContact != null )
+	{
+		var contact = Radar.SelectedContact;
+		var sol = Radar.ActiveFireSolution;
+		var blip = Radar.Blips.FirstOrDefault( b => b.Source == contact );
+		var age = blip != null ? (float)blip.PaintedAt : 0f;
+
+		<div class="contact-block">
+			<div class="data-row">
+				<span class="data-label">ID</span>
+				<span class="data-value">@contact.GameObject.Name</span>
+			</div>
+			<div class="data-row">
+				<span class="data-label">STATUS</span>
+				<span class="data-value unknown">UNKNOWN</span>
+			</div>
+			<div class="data-row">
+				<span class="data-label">DATA AGE</span>
+				<span class="data-value">@(age.ToString( "F1" ))s</span>
+			</div>
+		</div>
+
+		@if ( IsCalculating )
+		{
+			// Cancel if aircraft maneuvered mid-calculation
+			if ( contact.CodeDirty )
+			{
+				_calcStart = -1f;
+			}
+			else
+			{
+				var progress = CalcProgress;
+
+				if ( progress >= 1f )
+				{
+					Radar?.GenerateFireSolution( _capturedBlipPosition );
+					_calcStart = -1f;
+				}
+				else
+				{
+					<div class="solution-block">
+						<div class="solution-header">— COMPUTING SOLUTION —</div>
+						<div class="calc-bar-track">
+							<div class="calc-bar-fill" style=@($"width: {(int)(progress * 100)}%")></div>
+						</div>
+					</div>
+				}
+			}
+		}
+		else if ( sol != null && sol.Target == contact )
+		{
+			<div class="solution-block">
+				<div class="solution-header">— FIRE SOLUTION —</div>
+				<div class="data-row">
+					<span class="data-label">CODE</span>
+					<span class="data-value solution">@sol.FireControlCode</span>
+				</div>
+			</div>
+		}
+		else if ( contact.CodeDirty )
+		{
+			<div class="solution-block stale">
+				<div class="solution-header">— SOLUTION INVALID —</div>
+				<div class="data-row">
+					<span class="data-value">REACQUIRE TARGET</span>
+				</div>
+			</div>
+		}
+		else if ( _showNoBlipWarning )
+		{
+			<div class="solution-block warning">
+				<div class="solution-header">— NO BLIP DATA —</div>
+				<div class="data-row">
+					<span class="data-value">REACQUIRE CONTACT</span>
+				</div>
+			</div>
+		}
+
+		<div class="btn-group">
+			<button class="crt-btn @(IsCalculating ? "disabled" : "")" onclick=@OnGetSolution>GET SOLUTION</button>
+			<button class="crt-btn secondary" onclick=@OnDismiss>CLEAR</button>
+		</div>
+	}
+	else if ( Radar?.SelectedSite != null )
+	{
+		var site = Radar.SelectedSite;
+		var ammoFrac = site.MaxAmmo > 0 ? (float)site.CurrentAmmo / site.MaxAmmo : 0f;
+		var siteStatusClass = site.IsDamaged ? "status-dead" : (!site.IsOperational ? "status-warn" : "status-ok");
+		var siteStatusText = site.IsDamaged ? "DAMAGED" : (!site.IsOperational ? "NO AMMO" : "OPERATIONAL");
+
+		<div class="contact-block">
+			<div class="data-row">
+				<span class="data-label">ID</span>
+				<span class="data-value">@site.GameObject.Name</span>
+			</div>
+			<div class="data-row">
+				<span class="data-label">STATUS</span>
+				<span class="data-value @siteStatusClass">@siteStatusText</span>
+			</div>
+			<div class="data-row">
+				<span class="data-label">AMMO</span>
+				<span class="data-value">@site.CurrentAmmo / @site.MaxAmmo</span>
+			</div>
+			<div class="asset-bar-track">
+				<div class="asset-bar-fill @siteStatusClass" style="width:@((int)(ammoFrac * 100))%"></div>
+			</div>
+		</div>
+
+		<div class="btn-group">
+			<button class="crt-btn secondary" onclick=@OnDismiss>CLEAR</button>
+		</div>
+	}
+	else if ( Radar?.SelectedCity != null )
+	{
+		var city = Radar.SelectedCity;
+		var hpFrac = city.MaxHP > 0 ? (float)city.CurrentHP / city.MaxHP : 0f;
+		var cityStatusClass = city.IsDestroyed ? "status-dead" : (hpFrac < 0.5f ? "status-warn" : "status-ok");
+		var cityStatusText = city.IsDestroyed ? "DESTROYED" : (hpFrac < 0.5f ? "CRITICAL" : "OPERATIONAL");
+
+		<div class="contact-block">
+			<div class="data-row">
+				<span class="data-label">CITY</span>
+				<span class="data-value">@city.Label</span>
+			</div>
+			<div class="data-row">
+				<span class="data-label">STATUS</span>
+				<span class="data-value @cityStatusClass">@cityStatusText</span>
+			</div>
+			<div class="data-row">
+				<span class="data-label">INTEGRITY</span>
+				<span class="data-value">@city.CurrentHP / @city.MaxHP</span>
+			</div>
+			<div class="asset-bar-track">
+				<div class="asset-bar-fill @cityStatusClass" style="width:@((int)(hpFrac * 100))%"></div>
+			</div>
+		</div>
+
+		<div class="btn-group">
+			<button class="crt-btn secondary" onclick=@OnDismiss>CLEAR</button>
+		</div>
+	}
+	else
+	{
+		<div class="no-contact">
+			<span>NO CONTACT</span>
+			<span>SELECTED</span>
+		</div>
+	}
+
+	@* CRT decorations — last so they overlay everything *@
+	<div class="corner-bracket tl"></div>
+	<div class="corner-bracket tr"></div>
+	<div class="corner-bracket bl"></div>
+	<div class="corner-bracket br"></div>
+
+	@for ( int i = 0; i < ScanlineCount; i++ )
+	{
+		<div class="scanline" style="top:@(i * ScanlineSpacing)px"></div>
+	}
+
+</root>
+
+@code
+{
+	const int ScanlineCount = 120;
+	const int ScanlineSpacing = 4;
+
+	public static ContactInfoPanel Instance { get; private set; }
+
+	RadarSystem Radar => RadarSystem.Instance;
+
+	string PanelTitle => Radar?.SelectedSite != null ? "SAM SITE DATA"
+		: Radar?.SelectedCity != null ? "CITY DATA"
+		: "CONTACT DATA";
+
+	float _calcStart = -1f;
+	Vector3 _capturedBlipPosition;
+	const float CalcDuration = 1.5f;
+
+	bool _showNoBlipWarning;
+	TimeUntil _noBlipWarningExpiry;
+
+	bool IsCalculating => _calcStart >= 0f;
+	float CalcProgress => MathF.Min( (Time.Now - _calcStart) / CalcDuration, 1f );
+
+	protected override void OnStart() => Instance = this;
+	protected override void OnDestroy() { if ( Instance == this ) Instance = null; }
+
+	protected override void OnUpdate()
+	{
+		if ( _showNoBlipWarning && _noBlipWarningExpiry )
+			_showNoBlipWarning = false;
+	}
+
+	public void RequestSolution()
+	{
+		Log.Info( "[ContactInfoPanel] GET SOLUTION clicked" );
+
+		if ( IsCalculating )
+		{
+			Log.Info( "[ContactInfoPanel] Rejected — already calculating" );
+			return;
+		}
+
+		if ( Radar?.SelectedContact == null )
+		{
+			Log.Info( "[ContactInfoPanel] Rejected — no selected contact" );
+			return;
+		}
+
+		var blip = Radar.Blips.FirstOrDefault( b => b.Source == Radar.SelectedContact );
+		if ( blip == null )
+		{
+			Log.Info( $"[ContactInfoPanel] Rejected — no blip for {Radar.SelectedContact.GameObject.Name}" );
+			_showNoBlipWarning = true;
+			_noBlipWarningExpiry = 2.5f;
+			return;
+		}
+
+		Log.Info( $"[ContactInfoPanel] Starting calculation for {Radar.SelectedContact.GameObject.Name}, blip age {(float)blip.PaintedAt:F1}s, code {Radar.SelectedContact.FireControlCode}" );
+		_capturedBlipPosition = blip.WorldPositionAtPaint;
+		_calcStart = Time.Now;
+
+		// Clear the dirty flag at calc start so the during-calc cancel check
+		// only triggers on NEW maneuvers (not pre-existing dirty state from
+		// before the player pressed GET SOLUTION).
+		Radar.SelectedContact.AcknowledgeDirty();
+	}
+
+	void OnGetSolution() => RequestSolution();
+
+	void OnDismiss()
+	{
+		Log.Info( $"[ContactInfoPanel] CLEAR clicked, was calculating: {IsCalculating}" );
+		_calcStart = -1f;
+		Radar?.SelectContact( null );
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		System.HashCode.Combine(
+			Radar?.SelectedContact?.GetHashCode() ?? 0,
+			Radar?.ActiveFireSolution?.FireControlCode,
+			Radar?.SelectedContact?.CodeDirty ?? false,
+			IsCalculating ? (int)(Time.Now * 30) : (int)(Time.Now * 4)
+		),
+		System.HashCode.Combine(
+			Radar?.SelectedSite?.GetHashCode() ?? 0,
+			Radar?.SelectedSite?.CurrentAmmo ?? 0,
+			Radar?.SelectedSite?.IsDamaged ?? false,
+			Radar?.SelectedCity?.GetHashCode() ?? 0,
+			Radar?.SelectedCity?.CurrentHP ?? 0
+		)
+	);
+}

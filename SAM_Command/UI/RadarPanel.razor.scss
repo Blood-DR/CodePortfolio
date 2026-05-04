@@ -1,0 +1,207 @@
+$green: #00ff41;
+$green-dim: #00a82b;
+
+.radar-root {
+	width: 100%;
+	height: 100%;
+	position: relative;
+	font-family: monospace;
+	color: $green;
+	pointer-events: all;
+}
+
+// ── Radar screen ─────────────────────────────────────────────────────────────
+
+.radar-screen {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background-color: #020d02;
+	box-shadow: 0 0 60px rgba(0, 255, 65, 0.2);
+	overflow: hidden;
+	pointer-events: all;
+}
+
+// ── Range rings ───────────────────────────────────────────────────────────────
+
+.range-ring {
+	position: absolute;
+	border-radius: 50%;
+	border: 1px solid rgba(0, 255, 65, 0.2);
+}
+
+.range-ring.outer {
+	width: 100%;
+	height: 100%;
+	left: 0;
+	top: 0;
+	border-color: rgba(0, 255, 65, 0.4);
+}
+
+// ── Center dot ────────────────────────────────────────────────────────────────
+
+.center-dot {
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background-color: $green;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+}
+
+// ── Sweep ─────────────────────────────────────────────────────────────────────
+
+.sweep-line {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 50%;
+	height: 2px;
+	transform-origin: left center;
+	background: linear-gradient(to right, $green, transparent);
+	box-shadow: 0 0 8px 2px rgba(0, 255, 65, 0.35);
+	margin-top: -1px;
+	pointer-events: none;
+}
+
+
+// ── Blips ─────────────────────────────────────────────────────────────────────
+
+.blip {
+	position: absolute;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: $green;
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+	box-shadow: 0 0 6px $green;
+}
+
+.blip.selected {
+	width: 12px;
+	height: 12px;
+	background-color: #ffffff;
+	box-shadow: 0 0 10px #ffffff;
+}
+
+// ── Missile marker ────────────────────────────────────────────────────────────
+
+.missile-marker {
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	transform: translate(-50%, -50%) rotate(45deg);
+	background-color: #ff9900;
+	box-shadow: 0 0 6px #ff9900;
+	pointer-events: none;
+}
+
+// ── SAM engagement zone (only visible while a site is selected) ───────────────
+
+// Two of these per selected site — one at each edge of the firing arc. Each is a
+// 1px-tall horizontal line; we rotate around its left-center so the rotation
+// pivot sits on the SAM's marker position.
+.engagement-arc-edge {
+	position: absolute;
+	height: 1px;
+	background-color: rgba(255, 255, 255, 0.7);
+	box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+	transform-origin: 0 50%;
+	pointer-events: none;
+}
+
+// Small dots along the engagement-range circumference, between the two edges.
+// Together with the edges they outline the firing-cone "pie slice".
+.engagement-arc-dot {
+	position: absolute;
+	width: 2px;
+	height: 2px;
+	border-radius: 50%;
+	background-color: rgba(255, 255, 255, 0.75);
+	box-shadow: 0 0 3px rgba(255, 255, 255, 0.4);
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+}
+
+// ── SAM site markers ──────────────────────────────────────────────────────────
+// Small filled square — green when operational, red when damaged, dim when out of ammo
+
+$sam-yellow: #ffd000;
+
+.site-marker {
+	position: absolute;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 14px;
+	height: 14px;
+	color: $sam-yellow;
+	font-family: Consolas, monospace;
+	font-size: 16px;
+	font-weight: bold;
+	text-shadow: 0 0 4px rgba(255, 208, 0, 0.7);
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+	background-color: transparent;
+
+	&.damaged {
+		color: #ff4444;
+		text-shadow: 0 0 4px rgba(255, 68, 68, 0.7);
+	}
+
+	&.empty {
+		color: rgba(255, 208, 0, 0.35);
+		text-shadow: none;
+	}
+
+	&.selected {
+		font-size: 22px;
+		color: #ffffff;
+		text-shadow: 0 0 8px #ffffff, 0 0 14px rgba(255, 255, 255, 0.5);
+	}
+}
+
+// ── City markers ──────────────────────────────────────────────────────────────
+// Rotated square (diamond) — bright cyan-green when alive, dark red when destroyed
+
+.city-marker {
+	position: absolute;
+	width: 9px;
+	height: 9px;
+	background-color: transparent;
+	border: 1.5px solid #66ffcc;
+	box-shadow: 0 0 5px rgba(102, 255, 204, 0.6);
+	transform: translate(-50%, -50%) rotate(45deg);
+	pointer-events: none;
+
+	&.destroyed {
+		border-color: #663333;
+		box-shadow: none;
+	}
+
+	&.selected {
+		width: 13px;
+		height: 13px;
+		border-color: #ffffff;
+		border-width: 2px;
+		box-shadow: 0 0 8px #ffffff;
+	}
+}
+
+// ── CRT scanlines ─────────────────────────────────────────────────────────────
+
+.scanline {
+	position: absolute;
+	left: 0;
+	width: 100%;
+	height: 2px;
+	background-color: rgba(0, 0, 0, 0.4);
+	pointer-events: none;
+	z-index: 100;
+}
+
+

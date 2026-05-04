@@ -1,0 +1,491 @@
+$phosphor: #4af66c;
+$phosphor-dim: #1f5c2c;
+$phosphor-faint: #0f2e16;
+$bg: #050a05;
+
+MainMenu {
+	width: 100%;
+	height: 100%;
+	background-color: $bg;
+	font-family: "Consolas", monospace;
+	color: $phosphor;
+	justify-content: center;
+	align-items: center;
+	pointer-events: auto;
+
+	.crt-scanlines {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 300;
+
+		.scanline {
+			position: absolute;
+			left: 0;
+			width: 100%;
+			height: 1px;
+			background-color: rgba(0, 0, 0, 0.4);
+			pointer-events: none;
+		}
+	}
+
+	.tree-panel {
+		position: absolute;
+		left: 32px;
+		top: 32px;
+		bottom: 32px;
+		width: 280px;
+		flex-direction: column;
+		justify-content: flex-end;
+		pointer-events: none;
+		z-index: 50;
+		overflow: hidden;
+
+		.tree-header {
+			color: $phosphor-dim;
+			font-size: 12px;
+			letter-spacing: 4px;
+			padding-bottom: 6px;
+			margin-bottom: 6px;
+			border-bottom: 1px solid $phosphor-faint;
+		}
+
+		.tree-line {
+			color: $phosphor-faint;
+			font-size: 11px;
+			letter-spacing: 1px;
+			height: 14px;
+			white-space: pre;
+			animation: tree-fade-in 0.4s ease-out;
+
+			&:last-child {
+				color: $phosphor-dim;
+				text-shadow: 0 0 4px $phosphor-faint;
+			}
+		}
+	}
+
+	.crt-beam {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 14px;
+		pointer-events: none;
+		z-index: 99;
+		background-color: rgba(74, 246, 108, 0.06);
+		box-shadow: 0 0 40px rgba(74, 246, 108, 0.15);
+		animation: scan-beam 9s linear infinite;
+	}
+
+
+
+	.boot-screen {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		flex-direction: column;
+		justify-content: flex-start;
+		align-items: stretch;
+		padding: 60px 80px;
+		pointer-events: all;
+		z-index: 200;
+
+		.boot-output {
+			flex-direction: column;
+			gap: 2px;
+
+			.boot-line {
+				color: $phosphor-dim;
+				font-size: 16px;
+				font-family: "Consolas", monospace;
+				letter-spacing: 1px;
+				white-space: pre;
+				animation: boot-line-in 0.08s linear;
+
+				&.cmd {
+					color: $phosphor;
+					text-shadow: 0 0 4px $phosphor;
+				}
+
+				&.typing {
+					animation: none;
+					flex-direction: row;
+					align-items: center;
+					align-self: flex-start;
+				}
+			}
+
+			.boot-cursor {
+				width: 9px;
+				height: 14px;
+				background-color: $phosphor;
+				margin-left: 4px;
+				opacity: 0;
+
+				&.on {
+					opacity: 1;
+					box-shadow: 0 0 8px $phosphor;
+				}
+			}
+
+			.press-enter {
+				flex-direction: row;
+				align-items: center;
+				justify-content: flex-start;
+				align-self: flex-start;
+				width: auto;
+				background-color: transparent;
+				border: none;
+				color: $phosphor;
+				font-size: 16px;
+				font-family: "Consolas", monospace;
+				letter-spacing: 2px;
+				cursor: pointer;
+				pointer-events: auto;
+				margin-top: 16px;
+				padding: 0;
+				text-shadow: 0 0 6px $phosphor;
+				animation: press-enter-pulse 1.4s ease-in-out infinite;
+
+				&:hover {
+					text-shadow: 0 0 12px $phosphor, 0 0 20px $phosphor;
+				}
+			}
+		}
+
+		.calibration {
+			margin-top: 40px;
+			flex-direction: column;
+			align-items: center;
+			gap: 14px;
+			padding: 32px 48px;
+			border: 1px solid $phosphor-dim;
+			align-self: center;
+			min-width: 560px;
+			background-color: rgba(0, 20, 0, 0.4);
+			animation: calibration-in 0.4s ease-out;
+
+			.cal-title {
+				color: $phosphor;
+				font-size: 22px;
+				letter-spacing: 6px;
+				text-shadow: 0 0 8px $phosphor;
+			}
+
+			.cal-info {
+				color: $phosphor-dim;
+				font-size: 14px;
+				letter-spacing: 3px;
+
+				&.subtle {
+					color: $phosphor-faint;
+					font-size: 11px;
+					letter-spacing: 2px;
+				}
+			}
+
+			.cal-row {
+				flex-direction: row;
+				align-items: center;
+				gap: 16px;
+				margin-top: 8px;
+
+				.cal-meter {
+					width: 360px;
+					height: 18px;
+					border: 1px solid $phosphor-dim;
+					padding: 2px;
+					background-color: rgba(0, 0, 0, 0.5);
+
+					.meter-fill {
+						height: 100%;
+						background-color: $phosphor;
+						box-shadow: 0 0 8px $phosphor;
+						transition: width 0.1s ease-out;
+					}
+				}
+			}
+
+			.cal-value {
+				color: $phosphor;
+				font-size: 20px;
+				letter-spacing: 4px;
+				text-shadow: 0 0 4px $phosphor;
+			}
+
+			.confirm-btn {
+				margin-top: 16px;
+				width: 220px;
+			}
+		}
+	}
+
+	.menu {
+		z-index: 200;
+		pointer-events: all;
+		flex-direction: column;
+		align-items: center;
+		gap: 60px;
+		padding: 80px;
+		min-width: 600px;
+		transform-origin: 50% 50%;
+
+		&.shutting-down {
+			pointer-events: none;
+			animation: crt-collapse 0.9s ease-in forwards;
+		}
+	}
+
+	.transition-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: $bg;
+		pointer-events: none;
+		z-index: 9998;
+		opacity: 0;
+		animation: fade-to-black 0.9s ease-in forwards;
+	}
+
+	.transition-line {
+		position: absolute;
+		top: 50%;
+		left: 0;
+		width: 100%;
+		height: 2px;
+		background-color: $phosphor;
+		box-shadow: 0 0 20px $phosphor, 0 0 40px $phosphor;
+		pointer-events: none;
+		z-index: 9999;
+		opacity: 0;
+		animation: scan-line 0.9s ease-in forwards;
+	}
+
+	.header {
+		flex-direction: column;
+		align-items: center;
+		gap: 12px;
+
+		.title {
+			font-size: 72px;
+			font-weight: bold;
+			letter-spacing: 12px;
+			text-shadow: 0 0 8px $phosphor;
+		}
+
+		.subtitle {
+			font-size: 18px;
+			color: $phosphor-dim;
+			letter-spacing: 4px;
+			min-height: 24px;
+
+			.cursor {
+				color: $phosphor;
+				margin-left: 2px;
+				opacity: 0;
+
+				&.on {
+					opacity: 1;
+					text-shadow: 0 0 6px $phosphor;
+				}
+			}
+		}
+	}
+
+	.buttons {
+		flex-direction: column;
+		gap: 16px;
+		width: 320px;
+
+		.btn {
+			background-color: transparent;
+			border: 1px solid $phosphor-dim;
+			color: $phosphor;
+			padding: 14px 24px;
+			font-size: 22px;
+			letter-spacing: 6px;
+			text-align: center;
+			cursor: pointer;
+			pointer-events: auto;
+			transition: all 0.15s ease-out;
+
+			&:hover {
+				background-color: $phosphor-dim;
+				border-color: $phosphor;
+				color: #ffffff;
+				text-shadow: 0 0 10px $phosphor;
+				box-shadow: 0 0 16px rgba(74, 246, 108, 0.4);
+				letter-spacing: 8px;
+			}
+
+			&:active {
+				background-color: $phosphor;
+				color: $bg;
+			}
+
+			&.disabled {
+				color: $phosphor-dim;
+				cursor: default;
+				pointer-events: none;
+				opacity: 0.4;
+			}
+		}
+	}
+
+	.settings {
+		flex-direction: column;
+		gap: 12px;
+		width: 480px;
+
+		.setting-row {
+			flex-direction: row;
+			justify-content: space-between;
+			align-items: center;
+			border-bottom: 1px solid $phosphor-faint;
+			padding: 8px 4px;
+
+			.label {
+				font-size: 16px;
+				color: $phosphor-dim;
+				letter-spacing: 4px;
+			}
+
+			.control {
+				flex-direction: row;
+				align-items: center;
+				gap: 12px;
+				min-width: 140px;
+				justify-content: flex-end;
+
+				.value {
+					color: $phosphor;
+					font-size: 18px;
+					min-width: 40px;
+					text-align: center;
+					text-shadow: 0 0 4px $phosphor;
+				}
+
+				.step-btn {
+					background-color: transparent;
+					border: 1px solid $phosphor-dim;
+					color: $phosphor;
+					padding: 4px 12px;
+					font-size: 16px;
+					cursor: pointer;
+					pointer-events: auto;
+					transition: all 0.1s ease-out;
+
+					&:hover {
+						background-color: $phosphor-dim;
+						border-color: $phosphor;
+						text-shadow: 0 0 6px $phosphor;
+					}
+				}
+
+				.toggle-btn {
+					background-color: transparent;
+					border: 1px solid $phosphor-dim;
+					color: $phosphor;
+					padding: 4px 16px;
+					font-size: 16px;
+					letter-spacing: 4px;
+					cursor: pointer;
+					pointer-events: auto;
+					transition: all 0.15s ease-out;
+
+					&:hover {
+						background-color: $phosphor-dim;
+						border-color: $phosphor;
+						text-shadow: 0 0 6px $phosphor;
+					}
+				}
+			}
+		}
+
+		.back-btn {
+			margin-top: 24px;
+			align-self: flex-start;
+			padding: 10px 20px;
+			font-size: 18px;
+		}
+	}
+
+	.footer {
+		flex-direction: column;
+		gap: 4px;
+		min-height: 100px;
+		align-items: flex-start;
+		width: 480px;
+
+		.log-line {
+			font-size: 13px;
+			color: $phosphor-faint;
+			letter-spacing: 2px;
+			animation: log-fade-in 0.3s ease-out;
+
+			&:last-child {
+				color: $phosphor-dim;
+			}
+		}
+	}
+}
+
+@keyframes log-fade-in {
+	from { opacity: 0; transform: translateY(-4px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tree-fade-in {
+	from { opacity: 0; transform: translateY(8px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes boot-line-in {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+@keyframes calibration-in {
+	from { opacity: 0; transform: translateY(20px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes press-enter-pulse {
+	0%, 100% { opacity: 0.7; }
+	50%      { opacity: 1; }
+}
+
+@keyframes scan-beam {
+	0%   { transform: translateY(-200px); }
+	100% { transform: translateY(2900px); }
+}
+
+@keyframes crt-collapse {
+	0%   { transform: scaleY(1) scaleX(1); opacity: 1; }
+	35%  { transform: scaleY(1.02) scaleX(1); opacity: 1; }
+	55%  { transform: scaleY(0.04) scaleX(1); opacity: 1; }
+	80%  { transform: scaleY(0.04) scaleX(0.05); opacity: 1; }
+	100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes fade-to-black {
+	0%, 50% { opacity: 0; }
+	100%    { opacity: 1; }
+}
+
+@keyframes scan-line {
+	0%   { opacity: 0; transform: scaleY(1); }
+	50%  { opacity: 1; transform: scaleY(1); }
+	75%  { opacity: 1; transform: scaleY(1) scaleX(0.6); }
+	95%  { opacity: 1; transform: scaleY(1) scaleX(0.02); }
+	100% { opacity: 0; transform: scale(0); }
+}
+

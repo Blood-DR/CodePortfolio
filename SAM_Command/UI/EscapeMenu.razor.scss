@@ -1,0 +1,216 @@
+$phosphor: #4af66c;
+$phosphor-dim: #1f5c2c;
+$phosphor-faint: #0f2e16;
+$bg: #050a05;
+
+EscapeMenu {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 1000;
+	justify-content: center;
+	align-items: center;
+	font-family: "Consolas", monospace;
+	color: $phosphor;
+
+	.backdrop {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(5, 10, 5, 0.82);
+		pointer-events: all;
+		animation: backdrop-in 0.2s ease-out;
+	}
+
+	.escape-panel {
+		position: relative;
+		z-index: 10;
+		flex-direction: column;
+		align-items: center;
+		gap: 40px;
+		padding: 48px 56px;
+		min-width: 360px;
+		border: 1px solid $phosphor-dim;
+		background-color: rgba(5, 10, 5, 0.95);
+		box-shadow: 0 0 40px rgba(74, 246, 108, 0.12);
+		pointer-events: all;
+		animation: panel-in 0.18s ease-out;
+
+		&.wide {
+			min-width: 520px;
+		}
+	}
+
+	.panel-header {
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
+
+		.panel-title {
+			font-size: 28px;
+			font-weight: bold;
+			letter-spacing: 10px;
+			text-shadow: 0 0 10px $phosphor;
+		}
+
+		.panel-day {
+			font-size: 13px;
+			color: $phosphor-dim;
+			letter-spacing: 5px;
+		}
+	}
+
+	.buttons {
+		flex-direction: column;
+		gap: 12px;
+		width: 280px;
+
+		.btn {
+			background-color: transparent;
+			border: 1px solid $phosphor-dim;
+			color: $phosphor;
+			padding: 12px 20px;
+			font-size: 18px;
+			letter-spacing: 5px;
+			text-align: center;
+			cursor: pointer;
+			pointer-events: auto;
+			transition: all 0.12s ease-out;
+
+			&:hover {
+				background-color: $phosphor-dim;
+				border-color: $phosphor;
+				color: #ffffff;
+				text-shadow: 0 0 8px $phosphor;
+				box-shadow: 0 0 14px rgba(74, 246, 108, 0.35);
+				letter-spacing: 7px;
+			}
+
+			&:active {
+				background-color: $phosphor;
+				color: $bg;
+			}
+
+			&.quit-btn {
+				margin-top: 8px;
+				color: $phosphor-dim;
+				border-color: $phosphor-faint;
+
+				&:hover {
+					color: #ff6666;
+					border-color: #aa3333;
+					background-color: rgba(80, 0, 0, 0.4);
+					text-shadow: 0 0 8px #ff4444;
+					box-shadow: 0 0 14px rgba(255, 60, 60, 0.25);
+					letter-spacing: 7px;
+				}
+			}
+		}
+	}
+
+	.settings {
+		flex-direction: column;
+		gap: 10px;
+		width: 420px;
+
+		.setting-row {
+			flex-direction: row;
+			justify-content: space-between;
+			align-items: center;
+			border-bottom: 1px solid $phosphor-faint;
+			padding: 8px 4px;
+
+			.label {
+				font-size: 14px;
+				color: $phosphor-dim;
+				letter-spacing: 4px;
+			}
+
+			.control {
+				flex-direction: row;
+				align-items: center;
+				gap: 10px;
+				min-width: 130px;
+				justify-content: flex-end;
+
+				.value {
+					color: $phosphor;
+					font-size: 16px;
+					min-width: 36px;
+					text-align: center;
+					text-shadow: 0 0 4px $phosphor;
+				}
+
+				.step-btn {
+					background-color: transparent;
+					border: 1px solid $phosphor-dim;
+					color: $phosphor;
+					padding: 3px 10px;
+					font-size: 14px;
+					cursor: pointer;
+					pointer-events: auto;
+					transition: all 0.1s ease-out;
+
+					&:hover {
+						background-color: $phosphor-dim;
+						border-color: $phosphor;
+						text-shadow: 0 0 6px $phosphor;
+					}
+				}
+
+				.toggle-btn {
+					background-color: transparent;
+					border: 1px solid $phosphor-dim;
+					color: $phosphor;
+					padding: 3px 14px;
+					font-size: 14px;
+					letter-spacing: 4px;
+					cursor: pointer;
+					pointer-events: auto;
+					transition: all 0.12s ease-out;
+
+					&:hover {
+						background-color: $phosphor-dim;
+						border-color: $phosphor;
+						text-shadow: 0 0 6px $phosphor;
+					}
+				}
+			}
+		}
+
+		.btn.back-btn {
+			margin-top: 20px;
+			align-self: flex-start;
+			padding: 8px 18px;
+			font-size: 16px;
+			letter-spacing: 3px;
+			background-color: transparent;
+			border: 1px solid $phosphor-dim;
+			color: $phosphor;
+			cursor: pointer;
+			pointer-events: auto;
+			transition: all 0.12s ease-out;
+
+			&:hover {
+				background-color: $phosphor-dim;
+				border-color: $phosphor;
+				text-shadow: 0 0 8px $phosphor;
+			}
+		}
+	}
+}
+
+@keyframes backdrop-in {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+@keyframes panel-in {
+	from { opacity: 0; transform: translateY(-12px); }
+	to   { opacity: 1; transform: translateY(0); }
+}

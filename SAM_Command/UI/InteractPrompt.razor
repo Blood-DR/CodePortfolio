@@ -1,0 +1,46 @@
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+@namespace Sandbox
+
+@if ( _nearestStation != null && !StationManager.Instance.IsLockedIn )
+{
+	<root class="prompt-root">
+		<div class="prompt-box">
+			<span class="prompt-key">[ E ]</span>
+			<span class="prompt-label">@_nearestStation.StationName</span>
+		</div>
+	</root>
+}
+else if ( StationManager.Instance.IsLockedIn )
+{
+	<root class="prompt-root">
+		<div class="prompt-box exit">
+			<span class="prompt-key">[ E ]</span>
+			<span class="prompt-label">EXIT STATION</span>
+		</div>
+	</root>
+}
+
+@code
+{
+	private StationInteractable _nearestStation;
+
+	protected override void OnUpdate()
+	{
+		_nearestStation = null;
+		foreach ( var station in Scene.GetAll<StationInteractable>() )
+		{
+			if ( station.PlayerInRange )
+			{
+				_nearestStation = station;
+				break;
+			}
+		}
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		_nearestStation?.GetHashCode() ?? 0,
+		StationManager.Instance?.IsLockedIn ?? false
+	);
+}

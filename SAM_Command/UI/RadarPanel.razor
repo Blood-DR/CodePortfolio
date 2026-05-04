@@ -1,0 +1,153 @@
+@using System;
+@using Sandbox;
+@using Sandbox.UI;
+@inherits PanelComponent
+@namespace Sandbox
+
+<root class="radar-root">
+
+	<div class="radar-screen" onclick=@OnRadarClicked>
+
+
+		@* Range rings *@
+		<div class="range-ring" style="width:33%;height:33%;left:33.5%;top:33.5%;"></div>
+		<div class="range-ring" style="width:66%;height:66%;left:17%;top:17%;"></div>
+		<div class="range-ring outer"></div>
+
+		@* Selected SAM engagement zone — two radial arc edges + a dotted arc *@
+		@if ( Radar.SelectedSite != null )
+		{
+			var site       = Radar.SelectedSite;
+			var siteMarker = Radar.Sites.FirstOrDefault( m => m.Source == site );
+			if ( siteMarker != null )
+			{
+				// RadarRange maps to 50% of the panel.
+				var radiusPct = (site.EngagementRange / Radar.RadarRange) * 50f;
+
+				// Compass bearing of the site's facing (0°=N, +clockwise).
+				// CSS rotate uses 0°=east, so subtract 90° for line edges.
+				var fwd          = site.WorldRotation.Forward;
+				var facing       = (MathF.Atan2( fwd.x, fwd.y ) * 180f / MathF.PI + 360f) % 360f;
+				var halfArc      = site.FiringArcDegrees / 2f;
+				var leftEdgeCss  = facing - halfArc - 90f;
+				var rightEdgeCss = facing + halfArc - 90f;
+
+				@* Two radial boundary lines *@
+				<div class="engagement-arc-edge"
+					 style="left:@(F( siteMarker.PanelPosition.x ))%;top:@(F( siteMarker.PanelPosition.y ))%;
+					        width:@(F( radiusPct ))%;
+					        transform: rotate(@(F( leftEdgeCss ))deg);">
+				</div>
+				<div class="engagement-arc-edge"
+					 style="left:@(F( siteMarker.PanelPosition.x ))%;top:@(F( siteMarker.PanelPosition.y ))%;
+					        width:@(F( radiusPct ))%;
+					        transform: rotate(@(F( rightEdgeCss ))deg);">
+				</div>
+
+				@* Dotted arc connecting the two edges along the range circumference.
+				   Number of dots scales with arc width; ~1 dot per 2°. *@
+				var arcDotCount = Math.Max( 6, (int)(site.FiringArcDegrees / 2f) );
+				@for ( int i = 0; i <= arcDotCount; i++ )
+				{
+					var t          = i / (float)arcDotCount;
+					var bearingDeg = facing - halfArc + t * site.FiringArcDegrees;
+					var bearingRad = bearingDeg * MathF.PI / 180f;
+					var dotX       = siteMarker.PanelPosition.x + radiusPct * MathF.Sin( bearingRad );
+					var dotY       = siteMarker.PanelPosition.y - radiusPct * MathF.Cos( bearingRad );
+
+					<div class="engagement-arc-dot"
+						 style="left:@(F( dotX ))%;top:@(F( dotY ))%;">
+					</div>
+				}
+			}
+		}
+
+		@* Center dot *@
+		<div class="center-dot"></div>
+
+		@* Sweep line *@
+		<div class="sweep-line" style="transform: rotate(@(F( Radar.SweepAngle - 90f ))deg);"></div>
+
+		@* Blips *@
+		@foreach ( var blip in Radar.Blips )
+		{
+			var age = (float)blip.PaintedAt;
+			var opacity = 1f - (age / Radar.BlipDecayTime);
+			var isSelected = blip.Source == Radar.SelectedContact;
+			<div class="blip @(isSelected ? "selected" : "")"
+				 style="left:@(F( blip.PanelPosition.x ))%;top:@(F( blip.PanelPosition.y ))%;opacity:@(F( opacity ));">
+			</div>
+		}
+
+		@* Missile markers *@
+		@foreach ( var missile in Radar.Missiles )
+		{
+			<div class="missile-marker"
+				 style="left:@(F( missile.PanelPosition.x ))%;top:@(F( missile.PanelPosition.y ))%;">
+			</div>
+		}
+
+		@* SAM site markers *@
+		@foreach ( var site in Radar.Sites )
+		{
+			if ( !site.Source.IsActive ) continue;
+			var siteState = site.Source.IsDamaged ? "damaged" : (!site.Source.IsOperational ? "empty" : "");
+			var siteSelected = site.Source == Radar.SelectedSite ? "selected" : "";
+			<div class="site-marker @siteState @siteSelected"
+				 style="left:@(F( site.PanelPosition.x ))%;top:@(F( site.PanelPosition.y ))%;">
+				+
+			</div>
+		}
+
+		@* City markers *@
+		@foreach ( var city in Radar.CityMarkers )
+		{
+			if ( !city.Source.IsActive ) continue;
+			var cityState = city.Source.IsDestroyed ? "destroyed" : "";
+			var citySelected = city.Source == Radar.SelectedCity ? "selected" : "";
+			<div class="city-marker @cityState @citySelected"
+				 style="left:@(F( city.PanelPosition.x ))%;top:@(F( city.PanelPosition.y ))%;">
+			</div>
+		}
+
+		@* Scanlines — rendered last so they overlay everything; clipped to circle by overflow:hidden *@
+		@for ( int i = 0; i < ScanlineCount; i++ )
+		{
+			<div class="scanline" style="top:@(i * ScanlineSpacing)px"></div>
+		}
+
+	</div>
+
+</root>
+
+@code
+{
+	const int ScanlineCount = 120;
+	const int ScanlineSpacing = 4;
+
+	RadarSystem Radar => RadarSystem.Instance;
+	RadarInputHandler Input => RadarInputHandler.Instance;
+
+	static string F( float v ) => v.ToString( "F2", System.Globalization.CultureInfo.InvariantCulture );
+
+	void OnRadarClicked()
+	{
+		Input?.HandleClick();
+	}
+
+	protected override int BuildHash() => System.HashCode.Combine(
+		System.HashCode.Combine(
+			(int)(Radar?.SweepAngle ?? 0),
+			(int)(Time.Now * 15),
+			Radar?.Blips.Count ?? 0,
+			Radar?.Missiles.Count ?? 0
+		),
+		System.HashCode.Combine(
+			Radar?.Sites.Count ?? 0,
+			Radar?.CityMarkers.Count ?? 0,
+			Radar?.SelectedContact?.GetHashCode() ?? 0,
+			Radar?.SelectedSite?.GetHashCode() ?? 0,
+			Radar?.SelectedCity?.GetHashCode() ?? 0
+		)
+	);
+}

@@ -1,0 +1,35 @@
+.prompt-root {
+	position: absolute;
+	bottom: 8%;
+	left: 50%;
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+
+.prompt-box {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	background-color: rgba(0, 0, 0, 0.7);
+	border: 1px solid rgba(0, 255, 65, 0.4);
+	padding: 8px 18px;
+}
+
+.prompt-box.exit {
+	border-color: rgba(0, 255, 65, 0.2);
+}
+
+.prompt-key {
+	font-family: monospace;
+	font-size: 16px;
+	color: #00ff41;
+	letter-spacing: 1px;
+}
+
+.prompt-label {
+	font-family: monospace;
+	font-size: 14px;
+	color: rgba(0, 255, 65, 0.7);
+	letter-spacing: 2px;
+}
